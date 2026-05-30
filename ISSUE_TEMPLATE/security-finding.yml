@@ -1,0 +1,39 @@
+name: Security Finding
+description: Triage a finding from an automated scan (NOT for actual vulnerabilities — email security@rolliq.com instead)
+labels: ["security", "automated-finding"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ⚠️ **For actual vulnerabilities, do not use this form.**
+        Email security@rolliq.com instead.
+        This template is for triaging findings from automated security scanners.
+  - type: input
+    id: tool
+    attributes:
+      label: Tool / scanner
+      placeholder: "e.g. CodeQL, Dependabot, Trivy, Semgrep"
+    validations:
+      required: true
+  - type: textarea
+    id: finding
+    attributes:
+      label: Finding details
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - Critical
+        - High
+        - Medium
+        - Low
+        - Informational
+    validations:
+      required: true
+  - type: textarea
+    id: remediation
+    attributes:
+      label: Proposed remediation
