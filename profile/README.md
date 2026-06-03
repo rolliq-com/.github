@@ -1,5 +1,7 @@
 # Rolliq
 
-AI-powered reference checking for recruitment teams. We help organisations run faster, fairer hiring by automating reference collection and analysis with AI.
+AI training, automation and implementation for businesses across New Zealand and Australia.
+
+We help teams build lasting AI capability through hands-on training, practical automation, and custom AI solutions. Our focus is building real capability in your team, not just shipping technology.
 
 **[rolliq.com](https://rolliq.com)**
