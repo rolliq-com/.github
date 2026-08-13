@@ -1,0 +1,241 @@
+# Alert-coverage proposal form.
+#
+# Filed for rolliq-com/solution-recruitment-reference-check#1260, and placed HERE
+# rather than in that repo on purpose — see WHY THIS IS AN ORG DEFAULT below.
+#
+# WHY THIS EXISTS. An Azure scheduled query rule carries a recurring monthly
+# charge, per rule, PER ENVIRONMENT, indefinitely — and nothing in the filing
+# path said so. Each proposal was individually reasonable; the aggregate was
+# never priced, because the cost was invisible at the moment of the decision.
+#
+# The lever is FREQUENCY and a deliberate choice at filing time, never coverage.
+# Staging alerting is what catches a regression before it reaches a customer
+# deploy; this form exists to make rules cheaper, not fewer.
+#
+# THE FIELD THAT DOES THE WORK is `frequency`: a required dropdown with no
+# default. The module default is the whole defect —
+#
+#   platform-iac//modules/azure/monitor-alerts/variables.tf:185-186
+#     evaluation_frequency = optional(string, "PT5M")
+#     window_duration      = optional(string, "PT5M")
+#
+# — so a rule filed without stating a cadence IS a 5-minute rule, silently.
+# Everything else on this form is context for choosing that value well.
+#
+# WHY THIS IS AN ORG DEFAULT AND NOT A REPO-LOCAL FORM. Every solution deploys
+# the same monitor-alerts module with the same PT5M default, so the defect is
+# fleet-wide rather than one repo's. It also had to go here for a second reason
+# worth recording, because it is not obvious and it bites silently:
+#
+#   A repo-local .github/ISSUE_TEMPLATE/ REPLACES this org-default set wholesale.
+#   The two do not merge. Adding a single form to one repo would have removed
+#   Bug Report, Feature Request and Security Finding from that repo's chooser,
+#   with no warning and no signal anywhere that it had happened.
+#
+# So a form added here is additive and a form added there is subtractive. If a
+# repo ever needs its own ISSUE_TEMPLATE directory, it must carry copies of every
+# form in this directory or it silently loses them.
+#
+# NO COMMERCIAL FIGURES. Deliberately absent here and in anything filed through
+# this form; they live in the vault ledger. Cost is referred to qualitatively.
+#
+# THE OPTION LISTS ARE NOT DECORATIVE. `frequency` and `window` below are exactly
+# the values the monitor-alerts module accepts (variables.tf:250 and :259). If
+# that module's lists change, change these with them — a value this form offers
+# and Terraform rejects is a trap shipped as a guardrail. PT1M is absent from
+# both by the module's deliberate choice, not by omission.
+#
+# WHAT THIS FORM DOES NOT COVER: issues opened through the API — `gh issue
+# create`, Actions, the review bots — never see an issue form, and that is how
+# the large majority of issues in this fleet arrive. This binds humans filing in
+# the web UI. It is a prompt at the point of decision, not an enforced gate.
+
+name: Alert coverage
+description: Propose a new Azure Monitor alert rule, or a change to an existing one
+title: "Alert coverage: "
+labels: ["enhancement"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        An alert rule bills **every month, per environment, indefinitely** — and rules are
+        normally filed for staging *and* prod, so each one is roughly double that. An alert
+        fleet can become the largest single line on the Azure bill this way, out of
+        individually cheap decisions nobody priced together.
+
+        This form is not here to talk you out of the rule. It is here so the **cadence** is
+        chosen rather than inherited: for a `Count > 0` rule, a slower cadence costs nothing
+        but detection latency.
+
+        Please keep commercial figures out of this issue — they belong in the vault ledger.
+
+  - type: textarea
+    id: what-is-unwatched
+    attributes:
+      label: What is unwatched, and what is exposed until this lands?
+      description: >-
+        The condition the rule detects, the log literal(s) it would match, and — concretely —
+        what happens between now and this rule existing. "Nobody is notified" is the answer
+        that matters; say who cannot find out and how.
+      placeholder: |
+        Literal(s): some_module.render_fallback
+        Until this lands: a client's branded template fails to parse, every document for that
+        client goes out with generic branding, and nobody is notified. The client is the only
+        person who can repair it and the failure is invisible from their side.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: rule-shape
+    attributes:
+      label: Rule shape
+      description: >-
+        This decides whether a slower cadence is free. An any-occurrence detector means the
+        same thing over a 5-minute bucket and a 60-minute one — only detection latency moves.
+        A rate rule is the opposite: widening the window makes it fire more readily and the
+        threshold needs re-tuning. A dead-man rule loses sensitivity when widened.
+      options:
+        - "Count > 0 — any-occurrence detector (widening is free)"
+        - "Count > N — rate/spike detector (widening needs the threshold re-tuned)"
+        - "Count < 1 — dead-man / absence detector (widening costs sensitivity)"
+        - "A change to an existing rule (no new rule, no new recurring cost)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: Evaluation frequency
+      description: >-
+        How often the rule runs. There is no default: an unstated cadence becomes PT5M, which
+        is what this form exists to stop. Hourly and slower is the norm — reach for faster
+        only when someone is actually going to act on the difference.
+      options:
+        - "PT1H — hourly (default choice for most rules)"
+        - "PT2H"
+        - "PT3H"
+        - "PT4H"
+        - "PT5H"
+        - "PT6H"
+        - "P1D — daily (right when the condition persists for days)"
+        - "PT45M"
+        - "PT30M"
+        - "PT15M"
+        - "PT10M"
+        - "PT5M — needs a justification below on any non-customer environment"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: window
+    attributes:
+      label: Window duration
+      description: >-
+        The look-back the query sees. It must be greater than or equal to the evaluation
+        frequency — the module fails the plan otherwise (monitor-alerts/main.tf:268), and
+        Azure's own rejection names neither field. P2D is the maximum; a look-back longer
+        than that cannot be expressed through this knob at all, and a query whose own `ago()`
+        reaches further back will not see the extra data.
+      options:
+        - "PT5M"
+        - "PT10M"
+        - "PT15M"
+        - "PT30M"
+        - "PT45M"
+        - "PT1H"
+        - "PT2H"
+        - "PT3H"
+        - "PT4H"
+        - "PT5H"
+        - "PT6H"
+        - "P1D"
+        - "P2D — the maximum the module accepts"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: environments
+    attributes:
+      label: Which environments would carry this rule?
+      description: >-
+        Select every one. This is the axis where the asymmetry bites: an internal rig has no
+        pager and near-zero traffic, so a fast cadence there buys latency nobody is awake to
+        use. Customer environments keep their current defaults.
+      multiple: true
+      options:
+        - "Customer production"
+        - "Customer staging"
+        - "Non-customer / internal rig — production"
+        - "Non-customer / internal rig — staging"
+    validations:
+      required: true
+
+  - type: textarea
+    id: sub-hourly-justification
+    attributes:
+      label: Justification for a sub-hourly cadence on a non-customer environment
+      description: >-
+        Required whenever you chose faster than PT1H above AND selected any non-customer
+        environment. Say who acts on the difference between hourly detection and faster, and
+        within what time. If it does not apply, write "n/a — hourly or slower" or
+        "n/a — customer environments only" and move on.
+      placeholder: |
+        n/a — hourly or slower
+    validations:
+      required: true
+
+  - type: textarea
+    id: can-it-fire
+    attributes:
+      label: How will you prove this rule can actually fire?
+      description: >-
+        A rule that returns nothing on a healthy system and nothing on a broken one is a dead
+        filter, and the two are indistinguishable from outside. Reading the KQL is not proof.
+        Name the check: a replay of the query against a window where the condition really
+        held, or an assertion of the query against a fixture.
+      placeholder: |
+        Replay against the week one channel really was quiet — expect exactly 1 row.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: emitter-ordering
+    attributes:
+      label: Is every log literal this rule watches already merged on the default branch?
+      description: >-
+        THE ALERT FOLLOWS THE EMITTER, NEVER PRECEDES IT. The solution repos derive their
+        alert-coverage test's literal set from the alerts.tf heredocs themselves, so a literal
+        added ahead of its emitter turns CI red immediately and names the literal in the test
+        id. Answering "no" is fine — it means this card is ordered behind another, which is
+        worth stating now rather than discovering in CI.
+      options:
+        - "Yes — every literal is emitted by code already on the default branch"
+        - "No — this must wait for its emitter (name the PR or issue below)"
+        - "N/A — no new log literal (dead-man rule, metric rule, or a threshold change)"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: acknowledgements
+    attributes:
+      label: Before filing
+      options:
+        - label: >-
+            I understand this rule carries a recurring monthly charge, per environment,
+            for as long as it exists — and that nothing will later prompt anyone to revisit it.
+          required: true
+        - label: >-
+            This issue contains no commercial figures (they belong in the vault ledger).
+          required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: >-
+        Related cards, the severity you would suggest, whether the rule should be absent
+        rather than silent on deployments where it cannot fire (the merge() pattern in
+        infra/alerts.tf), or why the obvious simpler rule was rejected.
+    validations:
+      required: false
